@@ -240,7 +240,7 @@ if (loginBtn) {
         const { error } = await supabaseClient.auth.signInWithOtp({
             email: email,
             options: {
-                emailRedirectTo: window.location.origin
+                emailRedirectTo: window.location.origin + window.location.pathname
             }
         });
 
