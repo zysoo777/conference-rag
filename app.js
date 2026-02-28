@@ -84,6 +84,9 @@ const ragBtn = document.getElementById('rag-btn');
 const ragResults = document.getElementById('rag-results');
 const ragStatus = document.getElementById('rag-status');
 
+// Speaker filter (custom feature)
+const speakerFilter = document.getElementById('speaker-filter');
+
 // ============================================
 // SETUP BANNER DETECTION
 // ============================================
@@ -353,7 +356,7 @@ async function checkSearchReadiness() {
                 });
                 semanticReady = !fnError;
             } catch {
-                // CORS or network error → function not deployed
+                // CORS or network error -> function not deployed
             }
         }
         setSearchReady('semantic', semanticReady);
@@ -400,6 +403,11 @@ function setSearchReady(type, ready) {
 
     if (inputEl) inputEl.disabled = !ready;
     if (btnEl) btnEl.disabled = !ready;
+
+    // Enable/disable speaker filter along with RAG readiness
+    if (type === 'rag' && speakerFilter) {
+        speakerFilter.disabled = !ready;
+    }
 
     if (panelEl) {
         if (ready) {
@@ -528,6 +536,18 @@ async function semanticSearch() {
 // RAG (ASK A QUESTION)
 // ============================================
 
+// Normalize speaker strings so dropdown values match DB values like
+// "By President Russell M. Nelson" or "Presented by President ..."
+function normalizeSpeaker(name) {
+    return (name || '')
+        .toLowerCase()
+        .replace(/^by\s+/i, '')
+        .replace(/^presented by\s+/i, '')
+        .replace(/\b(president|elder|sister|brother)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 async function askQuestion() {
     const question = ragInput ? ragInput.value.trim() : '';
     if (!question || !supabaseClient) return;
@@ -536,11 +556,32 @@ async function askQuestion() {
     clearResults('rag');
 
     try {
+        const selectedSpeakerRaw = speakerFilter ? speakerFilter.value.trim() : '';
+        const selectedSpeaker = normalizeSpeaker(selectedSpeakerRaw);
+        
         // Step 1: Get embedding
         const embedding = await getEmbedding(question);
 
         // Step 2: Search for similar sentences
-        const results = await searchSentences(embedding);
+        const baseCount = selectedSpeaker ? 80 : 20;
+        let results = await searchSentences(embedding, baseCount);
+
+        // Custom Feature: Speaker Filter (client-side)
+        if (selectedSpeaker) {
+            results = (results || []).filter(r => normalizeSpeaker(r.speaker) === selectedSpeaker);
+        }
+
+        if (!results || results.length === 0) {
+            if (selectedSpeakerRaw) {
+                showResults(
+                    'rag',
+                    `<div class="no-results">No results found for speaker "${escapeHtml(selectedSpeakerRaw)}". Try "All Speakers" or a different question.</div>`
+                );
+            } else {
+                showResults('rag', '<div class="no-results">No relevant results found. Try a different question.</div>');
+            }
+            return;
+        }
 
         // Step 3: Group by talk (with similarity scores and URLs)
         const topTalks = groupByTalk(results);
@@ -612,16 +653,16 @@ async function getEmbedding(text) {
 }
 
 // Search sentences using vector similarity
-async function searchSentences(embedding) {
-    if (!supabaseClient) throw new Error('Supabase not configured');
+async function searchSentences(embedding, matchCount = 20) {
+  if (!supabaseClient) throw new Error('Supabase not configured');
 
-    const { data, error } = await supabaseClient.rpc('match_sentences', {
-        query_embedding: embedding,
-        match_count: 20
-    });
+  const { data, error } = await supabaseClient.rpc('match_sentences', {
+    query_embedding: embedding,
+    match_count: matchCount
+  });
 
-    if (error) throw new Error(`Database search failed: ${error.message}`);
-    return data;
+  if (error) throw new Error(`Database search failed: ${error.message}`);
+  return data;
 }
 
 // Group search results by talk, computing average similarity per talk

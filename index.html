@@ -125,6 +125,17 @@
                     </div>
                     <p class="panel-description">Get AI-generated answers based on conference talks. Requires all Edge
                         Functions deployed.</p>
+
+                    <!-- speaker filter: separate row -->
+                <div class="panel-input panel-input-row">
+                    <select id="speaker-filter">
+                        <option value="">All Speakers</option>
+                        <option value="Russell M. Nelson">Russell M. Nelson</option>
+                        <option value="Dallin H. Oaks">Dallin H. Oaks</option>
+                        <option value="Dieter F. Uchtdorf">Dieter F. Uchtdorf</option>
+                    </select>
+                </div>
+
                     <div class="panel-input">
                         <input type="text" id="rag-input" placeholder="Ask a question about conference talks..."
                             autocomplete="off" disabled />

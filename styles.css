@@ -324,6 +324,36 @@ button {
    INPUTS
    ============================================ */
 
+/* Speaker filter */
+select#speaker-filter {
+    width: 100%;
+    padding: var(--spacing-sm);
+    background: var(--surface);
+    border: 2px solid var(--surface-light);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+select#speaker-filter:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.1);
+}
+
+select#speaker-filter:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+select#speaker-filter option {
+    color: #0f172a;
+    background: #ffffff;
+}
+
 input[type="email"],
 input[type="text"],
 input[type="password"],
@@ -530,6 +560,16 @@ input:focus {
 .panel-input button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.panel-input {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.panel-input input {
+    flex: 1;
 }
 
 /* Search Results */
