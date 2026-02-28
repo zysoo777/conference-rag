@@ -336,12 +336,20 @@ async function checkSearchReadiness() {
             hasEmbeddings = !error && count > 0;
         }
 
+        const fnHeaders = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG?.anonKey)
+            ? {
+                Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+                apikey: SUPABASE_CONFIG.anonKey,
+            }
+            : undefined;
+
         // --- 1 embed-question call (only if DB has embeddings) ---
         let semanticReady = false;
         if (hasEmbeddings) {
             try {
                 const { data, error: fnError } = await supabaseClient.functions.invoke('embed-question', {
-                    body: { question: 'test' }
+                    body: { question: 'test' },
+                    headers: fnHeaders,
                 });
                 semanticReady = !fnError;
             } catch {
@@ -356,7 +364,8 @@ async function checkSearchReadiness() {
         } else {
             try {
                 const { data, error: fnError } = await supabaseClient.functions.invoke('generate-answer', {
-                    body: { question: 'test', context_talks: [] }
+                    body: { question: 'test', context: '' },
+                    headers: fnHeaders,
                 });
                 setSearchReady('rag', !fnError || fnError.context?.status !== 404);
             } catch {
@@ -585,15 +594,21 @@ async function askQuestion() {
 
 // Get embedding via Edge Function
 async function getEmbedding(text) {
-    const { data, error } = await supabaseClient.functions.invoke('embed-question', {
-        body: { question: text }
-    });
+  const headers = {
+    Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+    apikey: SUPABASE_CONFIG.anonKey,
+  };
 
-    if (error) {
-        throw new Error(data?.error || 'Failed to get embedding');
-    }
+  const { data, error } = await supabaseClient.functions.invoke("embed-question", {
+    body: { question: text },
+    headers,
+  });
 
-    return data.embedding;
+  if (error) {
+    throw new Error(data?.error || error.message || "Failed to get embedding");
+  }
+
+  return data.embedding;
 }
 
 // Search sentences using vector similarity
@@ -682,18 +697,28 @@ async function fetchFullTalkText(talks) {
 
 // Generate answer via Edge Function
 async function generateAnswer(question, contextTalks) {
-    const { data, error } = await supabaseClient.functions.invoke('generate-answer', {
-        body: {
-            question: question,
-            context_talks: contextTalks
-        }
-    });
+  const headers = {
+    Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+    apikey: SUPABASE_CONFIG.anonKey,
+  };
 
-    if (error) {
-        throw new Error(data?.error || 'Failed to generate answer');
-    }
+  const context = (contextTalks || [])
+    .map(t => `Title: ${t.title}\nSpeaker: ${t.speaker}\nText: ${t.text}\nURL: ${t.url}`)
+    .join("\n\n");
 
-    return data.answer;
+  const { data, error } = await supabaseClient.functions.invoke("generate-answer", {
+    body: {
+      question,
+      context,
+    },
+    headers,
+  });
+
+  if (error) {
+    throw new Error(data?.error || error.message || "Failed to generate answer");
+  }
+
+  return data.answer;
 }
 
 // ============================================
